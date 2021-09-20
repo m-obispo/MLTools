@@ -1,0 +1,7 @@
+XYZ2X
+XYZfile=eq.xyz
+XfileOut=eq.x
+molDescriptor=RE
+molDescrType=sorted
+XYZsortedFileOut=eqx_sorted.out
+permInvNuclei=1-2,3-4
