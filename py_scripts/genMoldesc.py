@@ -97,5 +97,5 @@ def fetchEq(i_file_name, eq_file_name):
 
 if __name__ == '__main__':
     genH2O2_Ng('../ml_scripts/H2O2-Kr.xyz', 'Kr', dR = 0.1, dTeta = 10.)
-    fetchEq('../../Logs/H2O2_Kr-opt.log','../H2O2-Kr_eq.dat')
+    fetchEq('../H2O2_Kr-opt.log','../H2O2-Kr_eq.dat')
 #    os.system("mlatom XYZ2X XYZfile=H2O2-Ng.dat XfileOut=x_CM.dat molDescriptor=CM")
