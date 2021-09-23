@@ -17,7 +17,7 @@ teta2 = 0.                        #Angle between the other O-H bond and y axis
 
 #Keyword lists for Gaussian log parsing
 keywords_opt = ['OPTIMIZATION STOPPED','Z-Matrix','---------------------------------------------------------------------']
-keywords_mpn = []
+keywords_mpn = ['Counterpoise', 'corrected', 'energy']
 
 
 #Periodic Dictionary of Elements

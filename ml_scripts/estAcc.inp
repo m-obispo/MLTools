@@ -1,0 +1,19 @@
+estAccMLmodel
+XYZfile=H2O2-Kr.xyz
+Yfile=H2O2-Kr_E.dat
+YestFile=H2O2-Kr_ML.dat
+molDescriptor=RE
+molDescrType=permuted
+permInvNuclei=1-2,3-4 # specifies which atoms to permute
+kernel=Gaussian
+permInvKernel       # requests using permutationally invariant kernel
+sigma=opt
+lambda=opt
+minimizeError=RMSE
+sampling=user-defined
+itrainin=itrain.dat
+isubtrainin=isubtrain.dat
+ivalidatein=ivalidate.dat
+Ntrain=288
+Nsubtrain=230
+Nvalidate=58

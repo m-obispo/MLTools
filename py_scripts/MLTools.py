@@ -4,6 +4,8 @@ for MLatom.
 '''
 
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 import os
 from config import *
 
@@ -42,7 +44,6 @@ def genH2O2_Ng(i_file_name, Ng, dR, dTeta=0., dAlpha=0.):
             cos_a = np.cos(np.radians(Alpha))
             sen_a = np.sin(np.radians(Alpha))
             for Teta in teta_range:
-                print(Teta)
                 teta2 = teta1 + Teta
                 cos_t1 = np.cos(np.radians(teta1))
                 cos_t2 = np.cos(np.radians(teta2))
@@ -53,11 +54,9 @@ def genH2O2_Ng(i_file_name, Ng, dR, dTeta=0., dAlpha=0.):
                     x = np.array([0., 0., dsen*sen_t1, dsen*sen_t2, 0.     ])
                     y = np.array([0., 0., dsen*cos_t1, dsen*cos_t2, R*sen_a])
                     z = np.array([D2, -D2, D2 - dcos, - D/2 + dcos, R*cos_a])
-                    print(Teta)
                     i_file.write("{}\n\n".format(M))
                     for i in range(M):
                         i_file.write("{}    {:.5f}  {:.5f}  {:.5f}\n".format(atom[i], x[i], y[i], z[i]))
-                        print("{}    {:.5f}  {:.5f}  {:.5f}\n".format(atom[i], x[i], y[i], z[i]))
 
 
 def fetchEq(i_file_name, eq_file_name):
@@ -92,10 +91,75 @@ def fetchEq(i_file_name, eq_file_name):
         eq_file.write("{}\n\n".format(M))
         for i in range(M):
             eq_file.write("{}   {:.3f}  {:.3f}  {:.3f}\n".format(atom[i], x_eq[i], y_eq[i], z_eq[i]))
-    return c
 
+def fetchEnergies(i_file_name, E_file_name):
+    '''
+    Generates MLatom-compatible reference energy values from Gaussian logs for
+    arbitrary molecular systems. Currently, only MPn/aug-cc-pVTZ level calculations
+    are supported.
+    --------------------------------------------------------------------------------
+    Params:
+      i_file_name (str): Name of .log file to be parsed WITHOUT EXTENSION.
+      E_file_name (str): Name of .dat file to be generated with reference energies.
+    '''
+    global keywords_mpn
+    e_file = open(E_file_name,'w')
+    MP4 = np.zeros(21)
+    c = 0
+    for k in range(36): #[0,17]: 
+        mp4 = []
+        with open(i_file_name+"_{}.log".format(k),'r') as i_file:
+            for line in i_file:
+                linha = line.split()
+                if linha[:3] == keywords_mpn:
+                    mp4.append(float(linha[-1]))
+                    c += 1
+                    print('Energy no. {}: {:.5f} Ha'.format(c,float(linha[-1])))
+                    e_file.write('{:.5f}\n'.format(float(linha[-1])))
+        MP4 = np.vstack((MP4,np.array(mp4)))
+    MP4 = MP4[1:,:]
+    e_file.close()
+    return MP4
+
+def genFig(Title, subTitle, xLabel, yLabel):
+    fig = plt.figure(figsize = (16, 10), dpi=200)
+    plt.suptitle(Title, fontsize = '24')
+    plt.title(subTitle, fontsize = '22')
+    plt.grid()
+    plt.xlabel('$R (\\mathring{A})$', fontsize = '20')
+    plt.ylabel('Energia $(cm^{-1})$', fontsize = '20')
+    plt.xticks(fontsize = '20')
+    plt.yticks(fontsize = '20')
+
+def statAnal(out_file_name, fig_name):
+    o_file = open(out_file_name, 'r')
+    c = 0
+    statInfo = {}
+    for line in o_file:
+        if line == "CREATE AND SAVE FINAL ML MODEL": c += 1
+        if c => 1:
+            linha = line.split()
+            if linha[0] == 'MAE': statInfo['MAE'] = float(linha[2])
+            if linha[0] == 'MSE': statInfo['MSE'] = float(linha[2])
+            if linha[0] == 'RMSE': statInfo['RMSE'] = float(linha[2])
+            if linha[0] == 'R^2': statInfo['R2'] = float(linha[2])
+            if linha[0] == 'a': statInfo['yInt'] = float(linha[2])
+            if linha[0] == 'b': statInfo['slope'] = float(linha[2])
+            if linha[0] == 'SE_a': statInfo['yIntErr'] = float(linha[2])
+            if linha[0] == 'SE_b': statInfo['slopeErr'] = float(linha[2])
+    o_file.close()
+    E_ref = pd.read_csv('H2O2-Kr_E.dat', header=None).to_numpy()
+    E_pred = pd.read_csv('H2O2-Kr_ML.dat', header=None).to_numpy()
 
 if __name__ == '__main__':
     genH2O2_Ng('../ml_scripts/H2O2-Kr.xyz', 'Kr', dR = 0.1, dTeta = 10.)
-    fetchEq('../H2O2_Kr-opt.log','../H2O2-Kr_eq.dat')
+    fetchEq('../Logs/H2O2_Kr-opt.log','../ml_scripts/H2O2-Kr_eq.xyz')
+    fetchEnergies('../Logs/MP4/H2O2-Kr','../ml_scripts/H2O2-Kr_energies.dat')
 #    os.system("mlatom XYZ2X XYZfile=H2O2-Ng.dat XfileOut=x_CM.dat molDescriptor=CM")
+
+'''
+LAWS OF PROGRAMMING DEFINITION:  A WORKING PROGRAM
+                                 IS ONE THAT HAS
+                                 ONLY UNOBSERVED
+                                 BUGS.
+'''
