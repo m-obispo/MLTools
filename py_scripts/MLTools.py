@@ -121,24 +121,24 @@ def fetchEnergies(i_file_name, E_file_name):
     e_file.close()
     return MP4
 
-def genFig(Title, subTitle, xLabel, yLabel):
-    fig = plt.figure(figsize = (16, 10), dpi=200)
-    plt.suptitle(Title, fontsize = '24')
-    plt.title(subTitle, fontsize = '22')
+def genFig(xLabel, yLabel, Title = '', subTitle = ''):
+    fig = plt.figure(figsize = (10, 10), dpi=170)
+    plt.suptitle(Title)
+    plt.title(subTitle)
     plt.grid()
-    plt.xlabel('$R (\\mathring{A})$', fontsize = '20')
-    plt.ylabel('Energia $(cm^{-1})$', fontsize = '20')
-    plt.xticks(fontsize = '20')
-    plt.yticks(fontsize = '20')
+    plt.xlabel(xLabel)
+    plt.ylabel(yLabel)
+    plt.xticks()
+    plt.yticks()
 
-def statAnal(out_file_name, fig_name):
+def correlFig(out_file_name, E_ref_file, E_ML_file, fig_name = None, show = True):
     o_file = open(out_file_name, 'r')
     c = 0
     statInfo = {}
     for line in o_file:
-        if line == "CREATE AND SAVE FINAL ML MODEL": c += 1
-        if c => 1:
-            linha = line.split()
+        linha = line.split()
+        if linha == ["CREATE","AND","SAVE","FINAL","ML","MODEL"]: c += 1
+        if c >= 1 and linha != []:
             if linha[0] == 'MAE': statInfo['MAE'] = float(linha[2])
             if linha[0] == 'MSE': statInfo['MSE'] = float(linha[2])
             if linha[0] == 'RMSE': statInfo['RMSE'] = float(linha[2])
@@ -148,13 +148,28 @@ def statAnal(out_file_name, fig_name):
             if linha[0] == 'SE_a': statInfo['yIntErr'] = float(linha[2])
             if linha[0] == 'SE_b': statInfo['slopeErr'] = float(linha[2])
     o_file.close()
-    E_ref = pd.read_csv('H2O2-Kr_E.dat', header=None).to_numpy()
-    E_pred = pd.read_csv('H2O2-Kr_ML.dat', header=None).to_numpy()
 
-if __name__ == '__main__':
-    genH2O2_Ng('../ml_scripts/H2O2-Kr.xyz', 'Kr', dR = 0.1, dTeta = 10.)
-    fetchEq('../Logs/H2O2_Kr-opt.log','../ml_scripts/H2O2-Kr_eq.xyz')
-    fetchEnergies('../Logs/MP4/H2O2-Kr','../ml_scripts/H2O2-Kr_energies.dat')
+    E_ref = pd.read_csv(E_ref_file, header=None).to_numpy()
+    E_pred = pd.read_csv(E_ML_file, header=None).to_numpy()
+
+    x = np.arange(E_ref.min(), E_ref.max(), 0.001)
+    f = lambda x: statInfo['yInt'] + statInfo['slope']*x
+    y = np.array([f(_) for _ in x])
+
+    genFig('Reference energies (Ha)',
+           'ML energies (Ha)',
+           'Correlation between reference and ML Energies',
+           '$R^2 = {:.5f}$'.format(statInfo['R2'])
+    )
+    plt.plot(E_ref, E_pred, 'k.', label='Data')
+    plt.plot(x, y, 'r-', label='Regression: $a = {:.2f}, b = {:.2f}$'.format(statInfo['slope'],statInfo['yInt']))
+    if fig_name != None: plt.savefig(fig_name)
+    if show: plt.show()
+
+#if __name__ == '__main__':
+#    genH2O2_Ng('../ml_scripts/H2O2-Kr.xyz', 'Kr', dR = 0.1, dTeta = 10.)
+#    fetchEq('../Logs/H2O2_Kr-opt.log','../ml_scripts/H2O2-Kr_eq.xyz')
+#    fetchEnergies('../Logs/MP4/H2O2-Kr','../ml_scripts/H2O2-Kr_energies.dat')
 #    os.system("mlatom XYZ2X XYZfile=H2O2-Ng.dat XfileOut=x_CM.dat molDescriptor=CM")
 
 '''
