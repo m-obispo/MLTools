@@ -1,6 +1,8 @@
-learningCurve
+createMLmodel
 XYZfile=H2O2-Kr.xyz
 Yfile=H2O2-Kr_E.dat
+YestFile=H2O2-Kr_ML.dat
+MLmodelOut=KREG_H2O2-Kr.unf
 molDescriptor=RE
 molDescrType=permuted
 permInvNuclei=1-2,3-4 # specifies which atoms to permute
@@ -10,5 +12,9 @@ sigma=opt
 lambda=opt
 minimizeError=RMSE
 sampling=user-defined
-lcNtrains=180,192,204,216,228,240,252,264,276,288
-lcNrepeats=1024,512,256,128,64,32,16,8,4,2,1
+Ntrain=288
+Nsubtrain=230
+Nvalidate=58
+iTrainIn=itrain.dat
+iSubtrainIn=isubtrain.dat
+iValidateIn=ivalidate.dat
