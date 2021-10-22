@@ -1,7 +1,0 @@
-XYZ2X
-XYZfile=H2O2-Kr.xyz
-XfileOut=x_sorted.dat
-molDescriptor=RE
-molDescrType=sorted
-XYZsortedFileOut=x_sorted.out
-permInvNuclei=1-2,3-4

@@ -1,4 +1,0 @@
-slice
-nslices=3
-XfileIn=x_sorted.dat
-eqXfileIn=eq.x

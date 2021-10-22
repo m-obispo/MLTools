@@ -3,7 +3,7 @@ Configuration file for MLTools.
 '''
 
 # Path to MLatom executable
-mlatom_path = '~/.mlatom/MLatom.py'
+mlatom_path = '~/.mlatom/MLatom.py '
 
 # System Studied (restricted to H2O2-Ng variants atm)
 molsys = 'H2O2-Ng'
@@ -17,7 +17,10 @@ teta2 = 0.                        #Angle between the other O-H bond and y axis
 
 #Keyword lists for Gaussian log parsing
 keywords_opt = ['OPTIMIZATION STOPPED','Z-Matrix','---------------------------------------------------------------------']
-keywords_mpn = ['Counterpoise', 'corrected', 'energy']
+keywords_phf = ['Counterpoise', 'corrected', 'energy']
+
+#Keyword listing for MLatom
+keywords_estAcc = ['test','set']
 
 
 #Periodic Dictionary of Elements
