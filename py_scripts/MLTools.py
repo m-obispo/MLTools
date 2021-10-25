@@ -132,12 +132,13 @@ def fetchEnergies(i_file_name, E_file_name):
                     # print('Energy no. {}: {:.5f} Ha'.format(c,float(linha[-1])))
                     
         MP4 = np.vstack((MP4,np.array(mp4)))
+        
     MP4 = MP4[1:,:]
     E_grid = (MP4[1:,:] - Einf)*219474.6305
     e_file.close()
     return MP4
 
-def genFig(Title = '', subTitle = '', xLabel, yLabel):
+def genFig(Title, subTitle = '', xLabel='', yLabel=''):
     fig = plt.figure(figsize = (10, 10), dpi=200)
     plt.suptitle(Title)
     plt.title(subTitle)
@@ -184,40 +185,34 @@ def correlFig(out_file_name, E_ref_file, E_ML_file, fig_name = None, show = True
     if fig_name != None: plt.savefig(fig_name)
     if show: plt.show() 
     
+# ax.fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
 def lcPlot(lcPath, graphs, fig_name = None, show = True):
     if 'timePred' in graphs:
-        lcTimePred = pd.read_csv('learningCurve/MLatomF/lctimepredict.csv', sep=', ')
-        Ntrain = lcTimePred['Ntrain'].to_numpy()
-        meanTimePred = lcTimePred['meanTime'].to_numpy()
-        sd_timePred = lcTimePred['SD'].to_numpy()
-        
+        lcTimePred = pd.read_csv(lcPath+'lctimepredict.csv', sep=', ', engine='python')
         genFig('Learning Curves','Prediction Time',
-               'Average time for energy predictions',
-               'Number of Training Points')
-        plt.errorbar(Ntrain, meanTimePred, yerr=sd_timePred, fmt='g-', label='Prediction Time')
+               'Number of Training Points', 'Average time for energy predictions (s)')
+        plt.plot(lcTimePred['Ntrain'], lcTimePred['meanTime'], 'g.-', label='Prediction Time')
+        plt.fill_between(lcTimePred['Ntrain'], lcTimePred['meanTime'] - lcTimePred['SD'],
+                         lcTimePred['meanTime'] + lcTimePred['SD'], color = 'g', alpha=0.2)
         
     elif 'timeTrain' in graphs:
-        lcTimeTrain = pd.read_csv('learningCurve/MLatomF/lctimetrain.csv', sep=', ')
-        Ntrain = lcTimeTrain['Ntrain'].to_numpy()
-        meanTimeTrain = lcTimeTrain['meanTime'].to_numpy()
-        sd_timeTrain = lcTimeTrain['SD'].to_numpy()
-        
+        lcTimeTrain = pd.read_csv(lcPath+'lctimetrain.csv', sep=', ', engine='python')
         genFig('Learning Curves', 'Training Time',
-               'Average training time',
-               'Number of training points')
-        plt.errorbar(Ntrain, meanTime, yerr=sd_timeTrain, fmt='g-', label='Training Time')
+               'Number of training points', 'Average training time (s)')
+        plt.plot(lcTimeTrain['Ntrain'], lcTimeTrain['meanTime'], 'b.-', label='Training Time')
+        plt.fill_between(lcTimeTrain['Ntrain'], lcTimeTrain['meanTime'] - lcTimeTrain['SD'],
+                         lcTimeTrain['meanTime'] + lcTimeTrain['SD'], color = 'b', alpha=0.2)
         
     elif 'yErr' in graphs:
-        lcYerr = pd.read_csv('learningCurve/MLatomF/lcy.csv', sep=', ')
-        Ntrain = lcYerr['Ntrain'].to_numpy()
-        yErr = lcYerr['meanTime'].to_numpy()
-        sd_yErr = lcYerr['SD'].to_numpy()
-        
+        lcYerr = pd.read_csv(lcPath+'lcy.csv', sep=', ', engine='python')
         genFig('Learning Curves', 'Root-Mean-Square Error (RMSE)',
-               'RMSE',
-               'Number of training points')
-        plt.errorbar(Ntrain, yErr, yerr = sd_yErr, fmt = 'g-', label = 'RMSE')
-    
+               'Number of training points', 'RMSE (cm$^{-1}$)')
+        # plt.errorbar(lcYerr['Ntrain'], lcYerr['meanRMSE'], 
+                     # yerr = lcYerr['SD'], fmt = 'r.-', label = 'RMSE')
+        plt.plot(lcYerr['Ntrain'], lcYerr['meanRMSE'], 'r-', label = 'RMSE')
+        plt.fill_between(lcYerr['Ntrain'], lcYerr['meanRMSE'] - lcYerr['SD'],
+                         lcYerr['meanRMSE'] + lcYerr['SD'], color = 'r', alpha=0.2)
+                        
     if fig_name != None: plt.savefig(fig_name)
     if show: plt.show() 
         
@@ -284,15 +279,15 @@ if __name__ == '__main__': #Example run for H2O2-Kr
                           'Nsubtrain=453 > estAcc.out')   
                           
     # Plots the correlation graph between reference and ML energies
-    correlFig('../ml_scripts/estAcc.out', '../ml_scripts/H2O2-Kr_E.dat', '../ml_scripts/H2O2-Kr_ML.dat')
+    # correlFig('../ml_scripts/estAcc.out', '../ml_scripts/H2O2-Kr_E.dat', '../ml_scripts/H2O2-Kr_ML.dat')
     
     #Plots the learning curve
     os.system(mlatom_path+'learningCurve '+\
                           'XYZfile=H2O2-Kr.xyz '+\
                           'Yfile=H2O2-Kr_E.dat '+\
                           'YestFile=H2O2-Kr_ML.dat '+\
-                          'lcNtrains=100,216,333,450,567 '+\
-                          'lcNrepeats=3 '+\
+                          'lcNtrains={} '.format(','.join([str(int(x)) for x in np.floor(np.linspace(100,567,10))]))+\
+                          'lcNrepeats=10 '+\
                           'Nsubtrain=0.8 '+\
                           'Nvalidate=0.2 '+\
                           'Ntest=189 '+\
@@ -303,6 +298,11 @@ if __name__ == '__main__': #Example run for H2O2-Kr
                           'permInvKernel '+\
                           'sigma=opt '+\
                           'lambda=opt > learnCurve.out')  
+    #','.join([str(int(x)) for x in np.floor(np.linspace(100,567,10))])
+    #.format(','.join([str(x) for x in range(10,0,-1)]))
+    lcPlot('learningCurve/MLatomF/', ['yErr'])
+    lcPlot('learningCurve/MLatomF/', ['timeTrain'])
+    lcPlot('learningCurve/MLatomF/', ['timePred'])
     
 '''
 LAWS OF PROGRAMMING DEFINITION:  A WORKING PROGRAM
