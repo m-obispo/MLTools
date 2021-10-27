@@ -15,11 +15,11 @@ def genH2O2_Ng(i_file_name, Ng, dR, dTeta=0., dAlpha=0.):
     --------------------------------------------------------------------------------
     Params:
      i_file_name (str): Name of .xyz or .dat file to be generated.
-              Ng (str): Chemical symbol of the noble gas (He, Ne, Ar, Kr, Xe).
-            dR (float): Step in R variable (distance between Ng and O-O bond, in
-                        angstroms).
-         dTeta (float): Step in Theta variable (angle between the two O-O-H planes,
-                        in degrees).
+     Ng (str): Chemical symbol of the noble gas (He, Ne, Ar, Kr, Xe).
+     dR (float): Step in R variable (distance between Ng and O-O bond, in
+                 angstroms).
+     dTeta (float): Step in Theta variable (angle between the two O-O-H planes,
+                    in degrees).
     '''
     global D, d, chi, teta1, teta2
     
@@ -66,8 +66,8 @@ def fetchEq(i_file_name, eq_file_name):
     --------------------------------------------------------------------------------
     Params:
       i_file_name (str): Name of .log file to be parsed.
-     eq_file_name (str): Name of .xyz or .dat file to be generated with equilibrium
-                         geometry.
+      eq_file_name (str): Name of .xyz or .dat file to be generated with equilibrium
+                          geometry.
     '''
     global keywords_opt
     atom, x_eq, y_eq, z_eq = [], [], [], []
@@ -139,6 +139,15 @@ def fetchEnergies(i_file_name, E_file_name):
     return MP4
 
 def genFig(Title, subTitle = '', xLabel='', yLabel=''):
+    '''
+    Autogenerates figure configurations.
+    --------------------------------------------------------------------------------
+    Params:
+      Title (str): The main title of the figure.
+      subTitle (str): The subtitle of the figure.
+      xLabel (str): The x-axis label.
+      yLabel (str): The y-axis label.
+    '''
     fig = plt.figure(figsize = (10, 10), dpi=200)
     plt.suptitle(Title)
     plt.title(subTitle)
@@ -149,6 +158,18 @@ def genFig(Title, subTitle = '', xLabel='', yLabel=''):
     plt.yticks()
 
 def correlFig(out_file_name, E_ref_file, E_ML_file, fig_name = None, show = True):
+    '''
+    Generates a correlation plot between reference and ML energies
+    from the .dat files and MLatom output.
+    --------------------------------------------------------------------------------
+    Params:
+      out_file_name (str): Name of MLatom output file containing statistical analysis.
+      E_ref_file (str): Name of .dat file containing reference energies.
+      E_ML_file (str): Name of .dat file containing ML energies.
+      fig_name (str): Name of the figure file to be saved. If set to 'None' no image 
+                      file will be saved. Defaults to 'None'
+      show (bool): Whether the plot will be displayed. Defaults to 'True'.
+    '''
     global keywords_estAcc, statInfo
     o_file = open(out_file_name, 'r')
     c = 0
@@ -187,6 +208,22 @@ def correlFig(out_file_name, E_ref_file, E_ML_file, fig_name = None, show = True
     
 # ax.fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
 def lcPlot(lcPath, graphs, fig_name = None, show = True):
+    '''
+    Plots the generated learning curves from MLatom's learningCurve feature. 
+    Currently, only one learning curve at a time is available.
+    --------------------------------------------------------------------------------
+    Params:
+      lcPath (str): Name of MLatom's learningCurve directory containing statistical 
+                    analysis of the learning curves.
+      graphs (array): keywords for different plots.
+        'timePred': Average time for energy predictions vs Number of Training Points.
+        'timeTrain': Average training time vs Number of Training Points.
+        'yErr': Root-mean-square error vs Number of Training Points.
+      E_ML_file (str): Name of .dat file containing ML energies.
+      fig_name (str): Name of the figure file to be saved. If set to 'None' no image 
+                      file will be saved. Defaults to 'None'
+      show (bool): Whether the plot will be displayed. Defaults to 'True'.
+    '''
     if 'timePred' in graphs:
         lcTimePred = pd.read_csv(lcPath+'lctimepredict.csv', sep=', ', engine='python')
         genFig('Learning Curves','Prediction Time',
