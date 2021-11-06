@@ -202,7 +202,7 @@ def correlFig(out_file_name, E_ref_file, E_ML_file, fig_name = None, show = True
            'ML energies ($\\mathrm{cm}^{-1}$)')
     plt.plot(E_ref, E_pred, 'k.', label='Data')
     plt.plot(x, y, 'r-', label='Regression: $a = {:.2f}, b = {:.2f}$'.format(statInfo['slope'],statInfo['yInt']))
-    
+    plt.legend()
     if fig_name != None: plt.savefig(fig_name)
     if show: plt.show() 
     
@@ -246,10 +246,11 @@ def lcPlot(lcPath, graphs, fig_name = None, show = True):
                'Number of training points', 'RMSE (cm$^{-1}$)')
         # plt.errorbar(lcYerr['Ntrain'], lcYerr['meanRMSE'], 
                      # yerr = lcYerr['SD'], fmt = 'r.-', label = 'RMSE')
-        plt.plot(lcYerr['Ntrain'], lcYerr['meanRMSE'], 'r-', label = 'RMSE')
+        plt.plot(lcYerr['Ntrain'], lcYerr['meanRMSE'], 'r.-', label = 'RMSE')
         plt.fill_between(lcYerr['Ntrain'], lcYerr['meanRMSE'] - lcYerr['SD'],
                          lcYerr['meanRMSE'] + lcYerr['SD'], color = 'r', alpha=0.2)
-                        
+                         
+    plt.legend()
     if fig_name != None: plt.savefig(fig_name)
     if show: plt.show() 
         
@@ -316,7 +317,7 @@ if __name__ == '__main__': #Example run for H2O2-Kr
                           'Nsubtrain=453 > estAcc.out')   
                           
     # Plots the correlation graph between reference and ML energies
-    # correlFig('../ml_scripts/estAcc.out', '../ml_scripts/H2O2-Kr_E.dat', '../ml_scripts/H2O2-Kr_ML.dat')
+    correlFig('../ml_scripts/estAcc.out', '../ml_scripts/H2O2-Kr_E.dat', '../ml_scripts/H2O2-Kr_ML.dat')
     
     #Plots the learning curve
     os.system(mlatom_path+'learningCurve '+\
@@ -335,6 +336,7 @@ if __name__ == '__main__': #Example run for H2O2-Kr
                           'permInvKernel '+\
                           'sigma=opt '+\
                           'lambda=opt > learnCurve.out')  
+                          
     #','.join([str(int(x)) for x in np.floor(np.linspace(100,567,10))])
     #.format(','.join([str(x) for x in range(10,0,-1)]))
     lcPlot('learningCurve/MLatomF/', ['yErr'])
