@@ -1,0 +1,20 @@
+createMLmodel
+XYZfile=H2O2-Kr.xyz
+Yfile=H2O2-Kr_E.dat
+YestFile=H2O2-Kr_ML.dat
+MLmodelOut=KREG_H2O2-Kr.unf
+molDescriptor=RE
+molDescrType=permuted
+permInvNuclei=1-2,3-4 # specifies which atoms to permute
+kernel=Gaussian
+permInvKernel       # requests using permutationally invariant kernel
+sigma=opt
+lambda=opt
+minimizeError=RMSE
+sampling=user-defined
+Ntrain=288
+Nsubtrain=230
+Nvalidate=58
+iTrainIn=itrain.dat
+iSubtrainIn=isubtrain.dat
+iValidateIn=ivalidate.dat

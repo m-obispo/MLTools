@@ -1,0 +1,16 @@
+learningCurve
+XYZfile=H2O2-Kr.xyz
+Yfile=H2O2-Kr_E.dat
+YestFile=H2O2-Kr_ML.dat
+lcNtrains=100,216,333,450,567
+lcNrepeats=5,4,3,2,1
+Nsubtrain=0.8
+Nvalidate=0.2
+Ntest=189
+molDescriptor=RE
+molDescrType=permuted
+permInvNuclei=1-2.3-4 
+kernel=Gaussian
+permInvKernel 
+sigma=opt
+lambda=opt
