@@ -65,6 +65,14 @@ def genH2O2_Ng(Ng, dR, dTeta=0., dAlpha=0.):
         
 
 def genMLatomInput(i_file_name, atom, coords):
+    '''
+    Generates MLatom-compatible .xyz files for arbitrary molecular systems.
+    --------------------------------------------------------------------------------
+    Params:
+      atom (arr, str): List of atoms in the molecule.
+      coords (arr): A NxMx3 array corresponding to the molecular geometries at each 
+                    step of the calculation.
+    '''
     M = len(atom)
     with open(i_file_name, 'w') as i_file:
         for j in range(coords.shape[0]):
@@ -76,6 +84,15 @@ def genMLatomInput(i_file_name, atom, coords):
                 i_file.write("{}    {:.5f}  {:.5f}  {:.5f}\n".format(atom[i], x[i], y[i], z[i]))
 
 def refE_gaussian(atom, coords):
+    '''
+    Performs single-point energy calculations for arbitrary molecular systems using
+    Gaussian in the backend.
+    --------------------------------------------------------------------------------
+    Params:
+      atom (arr, str): List of atoms in the molecule.
+      coords (arr): A NxMx3 array corresponding to the molecular geometries at each 
+                    step of the calculation.
+    '''
     E = np.array([])
     for i in range(coords.shape[0]):
         molSys = Atoms(atom, coords[i])
@@ -152,7 +169,7 @@ def fetchEnergies(i_file_name, E_file_name):
                 # print(linha)
                 Einf = float(linha[4])
                 
-    for k in range(36): #[0,17]: 
+    for k in range(36):
         mp4 = []
         with open(i_file_name+"_{}.log".format(k),'r') as i_file:
             for line in i_file:
