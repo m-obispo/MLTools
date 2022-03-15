@@ -41,8 +41,8 @@ def genH2O2_Ng(Ng, dR, dTeta=0., dAlpha=0.):
     teta1 = 0.0             #Ângulo entre uma das ligações O-H e o eixo y
     teta2 = 0.0             #Ângulo entre uma das ligaçẽos O-H e o eixo y
     
-    mram = '32'
-    nproc = '32'
+    mram = '8'
+    nproc = '8'
     i_file='../Inputs/H2O2-{}/H2O2-{}'.format(Ng, Ng)
     c = 0 
 

@@ -27,20 +27,21 @@ def genH2O2_Ng(Ng, dR, dTeta=0., dAlpha=0.):
     global D, d, chi, teta1, teta2
        
     atom = ['O', 'O', 'H', 'H', Ng]
-    M = len(atom)						#No of atoms (nuclei)
-    coords = np.zeros((1,M,3))
+    nAtoms = len(atom)						#No of atoms (nuclei)
+    coords = np.zeros((1,nAtoms,3))
     
     dsen = d*np.sin(np.radians(chi))
     dcos = d*np.cos(np.radians(chi))
     D2 = D/2
-    
+    c = 0 
+       
     if dAlpha == 0.:
         alpha_range = [90.]
     else:
-        alpha_range = np.arange(0., 180. + dAlpha, dAlpha)
+        alpha_range = np.arange(-90., 90. + dAlpha, dAlpha)
     
     if dTeta == 0.:
-        teta_range = [90.]
+        teta_range = [110.]
     else:
         teta_range = np.arange(0., 360., dTeta)
     
@@ -48,18 +49,26 @@ def genH2O2_Ng(Ng, dR, dTeta=0., dAlpha=0.):
         cos_a = np.cos(np.radians(Alpha))
         sen_a = np.sin(np.radians(Alpha))
         for Teta in teta_range:
-            teta2 = teta1 + Teta
+            teta1 = -Teta/2
+            teta2 = Teta/2
             cos_t1 = np.cos(np.radians(teta1))
             cos_t2 = np.cos(np.radians(teta2))
             sen_t1 = np.sin(np.radians(teta1))
             sen_t2 = np.sin(np.radians(teta2))
-            for R in np.arange(3., 5.+dR, dR):
-                #             O   O   H            H            Ng
-                x = np.array([[0., 0., dsen*sen_t1, dsen*sen_t2, 0.     ]]).T
-                y = np.array([[0., 0., dsen*cos_t1, dsen*cos_t2, R*sen_a]]).T
-                z = np.array([[D2, -D2, D2 - dcos, - D/2 + dcos, R*cos_a]]).T
-                xyz = np.append(np.append(x, y, axis=1), z, axis=1).reshape(1,M,3)
+            r_range = np.arange(3., 5.+dR, dR)
+            for R in r_range:
+                #              O    O   H            H            Ng
+                x = np.array([[0.,  0., dsen*sen_t1, dsen*sen_t2, 0.     ]]).T
+                y = np.array([[0.,  0., dsen*cos_t1, dsen*cos_t2, R*cos_a]]).T
+                z = np.array([[D2, -D2, D2 - dcos  , -D2 + dcos , R*sen_a]]).T
+                xyz = np.append(np.append(x, y, axis=1), z, axis=1).reshape(1,nAtoms,3)
                 coords = np.append(coords, xyz, axis=0)
+                
+                c += 1
+                perc = c/len(alpha_range)/len(teta_range)/len(r_range)
+                print('Progress: [{}{}] {:.1f} %'.format('#'*int(np.floor(perc*20)),
+                                                         '-'*int(np.floor((1-perc)*20)),
+                                                         perc*100), end='\r')
                 
     return atom, coords[1:]
         
@@ -74,6 +83,7 @@ def genMLatomInput(i_file_name, atom, coords):
                     step of the calculation.
     '''
     M = len(atom)
+    c = 0 
     with open(i_file_name, 'w') as i_file:
         for j in range(coords.shape[0]):
             i_file.write("{}\n\n".format(M))
@@ -82,6 +92,46 @@ def genMLatomInput(i_file_name, atom, coords):
             z = coords[j,:,2]
             for i in range(M):
                 i_file.write("{}    {:.5f}  {:.5f}  {:.5f}\n".format(atom[i], x[i], y[i], z[i]))
+
+                c += 1
+                perc = c/coords.shape[0]
+                print('Progress: [{}{}] {:.1f} %'.format('#'*int(np.floor(perc*20)),
+                                                         '-'*int(np.floor((1-perc)*20)),
+                                                         perc*100), end='\r')
+
+    
+
+def genGaussianInputs(atom, coords, output_dir=None, index=None):
+    def cabecalho(ram, np, Ng, i, opt = False):
+        head = "%mem={}GB\n%nproc={}".format(ram, np)
+        head += "\n%Chk=/home/matheus/.masters/chk/H2O2-{}_{}.chk".format(Ng, i)
+        if opt: 
+            head += "\n#p mp4/aug-cc-pvtz int=ultrafine counterpoise=2 opt\n\nH2O2-{}\n\n0,1 0,1 0,1\n".format(Ng)
+        else: 
+            head += "\n#p mp4/aug-cc-pvtz int=ultrafine counterpoise=2 \n\nH2O2-{}\n\n0,1 0,1 0,1\n".format(Ng)
+        return head
+    
+    c = 0 
+    if index == None:
+        index = range(coords.shape[0])
+    if output_dir == None:
+        output_dir = '../Inputs/H2O2-{}/'.format(Ng,i)
+    
+    for i in index:
+        x = coords[i,:,0]
+        y = coords[i,:,1]
+        z = coords[i,:,2]
+        with open(output_dir + 'H2O2-{}_{:.0f}.com'.formtat(Ng,i),'w') as h:
+            h.write(cabecalho('8','8', Ng, i))
+            for j in range(len(atom)):
+                h.write("{}    {:.5f}  {:.5f}  {:.5f}\n".format(atom[j], x[j], y[j], z[j]))
+            h.write("\n\n")
+
+            c += 1
+            perc = c/index.shape
+            print('Progress: [{}{}] {:.1f} %'.format('#'*int(np.floor(perc*20)),
+                                                     '-'*int(np.floor((1-perc)*20)),
+                                                     perc*100), end='\r')
 
 def refE_gaussian(atom, coords):
     '''
@@ -104,7 +154,7 @@ def refE_gaussian(atom, coords):
                                basis='aug-cc-pvtz',
                                charge=0,
                                mult=1)
-        E = np.append(E, molSys.get_potential_energy()*0.036749308136649)
+        E = np.append(E, molSys.get_potential_energy())
     return E
 
 
@@ -146,6 +196,20 @@ def fetchEq(i_file_name, eq_file_name):
             'y':y_eq,
             'z':z_eq}
 
+def df_maker(atoms, coords):
+    indices_list = list(itertools.product(np.arange(coords.shape[0]),atoms))
+    indxs = pd.MultiIndex.from_tuples(indices_list, names=['i', 'atoms'])
+    coords_2D = coords.reshape(coords.shape[0]*coords.shape[1], coords.shape[2]) 
+    geoms = pd.DataFrame(coords_2D, index, ['x', 'y', 'z'])
+    return geoms
+
+def SBS_to_Gaussian(itrain_file='../ml_scripts/itrain.dat'):
+    itrain = pd.read_csv(itrain_file,header=None,names=['itrain']).to_numpy()
+    itrain = itrain.reshape((itrain.shape[0],)) - 1
+    itrain.sort()
+    genGaussianInputs(atom,coords,itrain)
+    print('Ready')
+    
 def fetchEnergies(i_file_name, E_file_name):
     '''
     Generates MLatom-compatible reference energy values from Gaussian logs for
@@ -321,69 +385,70 @@ def lcPlot(lcPath, graphs, fig_name = None, show = True):
     
 if __name__ == '__main__': #Example run for H2O2-Kr
     #Clears pre-existing data on folder
-    os.system('rm -rf *.x *.dat *.out slice* learningCurve/')
+    os.system('rm -rf ../ml_scripts/*.x ../ml_scripts/*.dat ~/ml_scripts/*.out ../ml_scripts/slice* ../ml_scripts/learningCurve/')
     
     #Generates ML input geometries for H2O2-Kr 
-    atoms, coords = genH2O2_Ng('Kr', dR = 0.1, dTeta = 10.)
+    atoms, coords = genH2O2_Ng('Kr', dR = 0.1, dTeta = 10., dAlpha = 10.)
     genMLatomInput('../ml_scripts/H2O2-Kr.xyz', atoms, coords)
     
     #Fetches the equilibrium geometry from a pre-made Gaussian 09 log file
-    fetchEq('../Logs/H2O2_Kr-opt.log','../ml_scripts/H2O2-Kr_eq.xyz') 
+    fetchEq('../Logs/H2O2-Kr_opt.log','../ml_scripts/H2O2-Kr_eq.xyz') 
     
-    #Fetches the reference energies fromGaussian 09 log files and writes them in MLatom '.dat' files
-    E_ref = fetchEnergies('../Logs/MP4/H2O2-Kr','../ml_scripts/H2O2-Kr_E.dat')
-
-    #Converts XYZ molecular geometries into MLatom '.x' input files
-    os.system(mlatom_path+'XYZ2X XYZfile=H2O2-Kr.xyz '+ \
-                          'XfileOut=x_sorted.dat '+ \
-                          'molDescriptor=RE '+ \
-                          'molDescrType=sorted '+ \
-                          'XYZsortedFileOut=x_sorted.out '+ \
-                          'permInvNuclei=1-2.3-4') # specifies which atoms to permute
-                              
     #Converts XYZ equilibrium molecular geometry into MLatom X input file
     os.system(mlatom_path+'XYZ2X '+ \
-                          'XYZfile=eq.xyz '+ \
-                          'XfileOut=eq.x '+ \
+                          'XYZfile=../ml_scripts/H2O2-Kr_eq.xyz '+ \
+                          'XfileOut=../ml_scripts/eq.x '+ \
                           'molDescriptor=RE '+ \
                           'molDescrType=sorted '+ \
-                          'XYZsortedFileOut=eqx_sorted.out '+ \
+                          'XYZsortedFileOut=../ml_scripts/eqx_sorted.out '+ \
                           'permInvNuclei=1-2.3-4')
+    
+    #Converts XYZ molecular geometries into MLatom '.x' input files
+    os.system(mlatom_path+'XYZ2X XYZfile=../ml_scripts/H2O2-Kr.xyz '+ \
+                          'XfileOut=../ml_scripts/x_sorted.dat '+ \
+                          'molDescriptor=RE '+ \
+                          'molDescrType=sorted '+ \
+                          'XYZsortedFileOut=../ml_scripts/x_sorted.out '+ \
+                          'permInvNuclei=1-2.3-4') # specifies which atoms to permute
+                              
                           
     #slices dataset into 3 equal size regions
-    os.system(mlatom_path+'slice nslices=3 XfileIn=x_sorted.dat eqXfileIn=eq.x')
+    os.system(mlatom_path+'slice nslices=3 XfileIn=../ml_scripts/x_sorted.dat eqXfileIn=../ml_scripts/eq.x')
     
     #Samples using structure-based sampling
-    os.system(mlatom_path+'sampleFromSlices nslices=3 sampling=structure-based Ntrain=567')
+    os.system(mlatom_path+'sampleFromSlices nslices=3 sampling=structure-based Ntrain=1675')
     
     #Merges the sampled indices from all slices
-    os.system(mlatom_path+'mergeSlices nslices=3 Ntrain=567')
+    os.system(mlatom_path+'mergeSlices nslices=3 Ntrain=1675')
+    
+    #Fetches the reference energies from Gaussian 09 log files and writes them in MLatom-compatible '.dat' files
+    #E_ref = fetchEnergies('../Logs/MP4/H2O2-Kr','../ml_scripts/H2O2-Kr_E.dat')
     
     #Training and estimating accuracy of ML model
-    os.system(mlatom_path+'estAccMLmodel '+\
-                          'XYZfile=H2O2-Kr.xyz '+\
-                          'Yfile=H2O2-Kr_E.dat '+\
-                          'YestFile=H2O2-Kr_ML.dat '+\
-                          'molDescriptor=RE '+\
-                          'molDescrType=permuted '+\
-                          'permInvNuclei=1-2.3-4 '+\
-                          'kernel=Gaussian '+\
-                          'permInvKernel '+\
-                          'sigma=opt '+\
-                          'lambda=opt '+\
-                          'minimizeError=RMSE '+\
-                          'sampling=user-defined '+\
-                          'itrainin=itrain.dat '+\
-                          'itestin=itest.dat '+\
-                          'isubtrainin=isubtrain.dat '+\
-                          'ivalidatein=ivalidate.dat '+\
-                          'Ntrain=567 '+\
-                          'Ntest=189 '+\
-                          'Nsubtrain=453 > estAcc.out')   
+    #os.system(mlatom_path+'estAccMLmodel '+\
+    #                      'XYZfile=H2O2-Kr.xyz '+\
+    #                      'Yfile=H2O2-Kr_E.dat '+\
+    #                      'YestFile=H2O2-Kr_ML.dat '+\
+    #                      'molDescriptor=RE '+\
+    #                      'molDescrType=permuted '+\
+    #                      'permInvNuclei=1-2.3-4 '+\
+    #                      'kernel=Gaussian '+\
+    #                      'permInvKernel '+\
+    #                      'sigma=opt '+\
+    #                      'lambda=opt '+\
+    #                      'minimizeError=RMSE '+\
+    #                      'sampling=user-defined '+\
+    #                      'itrainin=itrain.dat '+\
+    #                      'itestin=itest.dat '+\
+    #                      'isubtrainin=isubtrain.dat '+\
+    #                      'ivalidatein=ivalidate.dat '+\
+    #                      'Ntrain=567 '+\
+    #                      'Ntest=189 '+\
+    #                      'Nsubtrain=453 > estAcc.out')   
                           
     # Plots the correlation graph between reference and ML energies
-    correlFig('../ml_scripts/estAcc.out', '../ml_scripts/H2O2-Kr_E.dat', 
-              '../ml_scripts/H2O2-Kr_ML.dat', '../ml_scripts/itest.dat')
+    #correlFig('../ml_scripts/estAcc.out', '../ml_scripts/H2O2-Kr_E.dat', 
+    #          '../ml_scripts/H2O2-Kr_ML.dat', '../ml_scripts/itest.dat')
     
     #Plots the learning curve
     # os.system(mlatom_path+'learningCurve '+\

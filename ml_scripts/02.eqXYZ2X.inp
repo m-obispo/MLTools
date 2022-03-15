@@ -1,5 +1,5 @@
 XYZ2X
-XYZfile=eq.xyz
+XYZfile=H2O2-Kr_eq.xyz
 XfileOut=eq.x
 molDescriptor=RE
 molDescrType=sorted
