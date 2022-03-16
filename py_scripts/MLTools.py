@@ -99,9 +99,7 @@ def genMLatomInput(i_file_name, atom, coords):
                                                          '-'*int(np.floor((1-perc)*20)),
                                                          perc*100), end='\r')
 
-    
-
-def genGaussianInputs(atom, coords, output_dir=None, index=None):
+def genGaussianInputs(atoms, coords, output_dir, index=None):
     def cabecalho(ram, np, Ng, i, opt = False):
         head = "%mem={}GB\n%nproc={}".format(ram, np)
         head += "\n%Chk=/home/matheus/.masters/chk/H2O2-{}_{}.chk".format(Ng, i)
@@ -112,23 +110,24 @@ def genGaussianInputs(atom, coords, output_dir=None, index=None):
         return head
     
     c = 0 
-    if index == None:
+    Ng = atoms[-1]
+
+    if str(type(index)) == "<class 'NoneType'>":
         index = range(coords.shape[0])
-    if output_dir == None:
-        output_dir = '../Inputs/H2O2-{}/'.format(Ng,i)
     
     for i in index:
         x = coords[i,:,0]
         y = coords[i,:,1]
         z = coords[i,:,2]
-        with open(output_dir + 'H2O2-{}_{:.0f}.com'.formtat(Ng,i),'w') as h:
+        with open(output_dir+'/H2O2-{}_{:.0f}.com'.format(Ng,i),'w') as h:
             h.write(cabecalho('8','8', Ng, i))
-            for j in range(len(atom)):
-                h.write("{}    {:.5f}  {:.5f}  {:.5f}\n".format(atom[j], x[j], y[j], z[j]))
+            for j in range(len(atoms)-1):
+                h.write("{}(Fragment=1)    {:.5f}  {:.5f}  {:.5f}\n".format(atoms[j], x[j], y[j], z[j]))
+            h.write("{}(Fragment=2)    {:.5f}  {:.5f}  {:.5f}\n".format(atoms[-1], x[-1], y[-1], z[-1]))
             h.write("\n\n")
 
             c += 1
-            perc = c/index.shape
+            perc = c/len(index)
             print('Progress: [{}{}] {:.1f} %'.format('#'*int(np.floor(perc*20)),
                                                      '-'*int(np.floor((1-perc)*20)),
                                                      perc*100), end='\r')
@@ -157,6 +156,19 @@ def refE_gaussian(atom, coords):
         E = np.append(E, molSys.get_potential_energy())
     return E
 
+def dfMaker(atoms, coords):
+    indices_list = list(itertools.product(np.arange(coords.shape[0]),atoms))
+    indxs = pd.MultiIndex.from_tuples(indices_list, names=['i', 'atoms'])
+    coords_2D = coords.reshape(coords.shape[0]*coords.shape[1], coords.shape[2]) 
+    geoms = pd.DataFrame(coords_2D, index, ['x', 'y', 'z'])
+    return geoms
+
+def SBS_to_Gaussian(atoms, coords, output_dir,itrain_file='../ml_scripts/itrain.dat'):
+    itrain = pd.read_csv(itrain_file,header=None,names=['itrain']).to_numpy()
+    itrain = itrain.reshape((itrain.shape[0],)) - 1
+    itrain.sort()
+    genGaussianInputs(atoms,coords,output_dir,itrain)
+    print('\nReady')
 
 def fetchEq(i_file_name, eq_file_name):
     '''
@@ -196,19 +208,6 @@ def fetchEq(i_file_name, eq_file_name):
             'y':y_eq,
             'z':z_eq}
 
-def df_maker(atoms, coords):
-    indices_list = list(itertools.product(np.arange(coords.shape[0]),atoms))
-    indxs = pd.MultiIndex.from_tuples(indices_list, names=['i', 'atoms'])
-    coords_2D = coords.reshape(coords.shape[0]*coords.shape[1], coords.shape[2]) 
-    geoms = pd.DataFrame(coords_2D, index, ['x', 'y', 'z'])
-    return geoms
-
-def SBS_to_Gaussian(itrain_file='../ml_scripts/itrain.dat'):
-    itrain = pd.read_csv(itrain_file,header=None,names=['itrain']).to_numpy()
-    itrain = itrain.reshape((itrain.shape[0],)) - 1
-    itrain.sort()
-    genGaussianInputs(atom,coords,itrain)
-    print('Ready')
     
 def fetchEnergies(i_file_name, E_file_name):
     '''
