@@ -6,6 +6,7 @@ for MLatom.
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import axes3d
 import os
 from ase import Atoms
 from ase.calculators.gaussian import Gaussian, GaussianOptimizer
@@ -38,7 +39,7 @@ def genH2O2_Ng(Ng, dR, dTeta=0., dAlpha=0.):
     if dAlpha == 0.:
         alpha_range = [90.]
     else:
-        alpha_range = np.arange(-90., 90. + dAlpha, dAlpha)
+        alpha_range = np.arange(-90., 0. + dAlpha, dAlpha)
     
     if dTeta == 0.:
         teta_range = [110.]
@@ -120,7 +121,7 @@ def genGaussianInputs(atoms, coords, output_dir, index=None):
         y = coords[i,:,1]
         z = coords[i,:,2]
         with open(output_dir+'/H2O2-{}_{:.0f}.com'.format(Ng,i),'w') as h:
-            h.write(cabecalho('8','8', Ng, i))
+            h.write(cabecalho(nproc,ram, Ng, i))
             for j in range(len(atoms)-1):
                 h.write("{}(Fragment=1)    {:.5f}  {:.5f}  {:.5f}\n".format(atoms[j], x[j], y[j], z[j]))
             h.write("{}(Fragment=2)    {:.5f}  {:.5f}  {:.5f}\n".format(atoms[-1], x[-1], y[-1], z[-1]))
@@ -165,9 +166,9 @@ def dfMaker(atoms, coords):
 
 def SBS_to_Gaussian(atoms, coords, output_dir,itrain_file='../ml_scripts/itrain.dat'):
     itrain = pd.read_csv(itrain_file,header=None,names=['itrain']).to_numpy()
-    itrain = itrain.reshape((itrain.shape[0],)) - 1
+    itrain = itrain.reshape((itrain.shape[0],)) 
     itrain.sort()
-    genGaussianInputs(atoms,coords,output_dir,itrain)
+    genGaussianInputs(atoms,coords,output_dir,itrain-1)
     print('\nReady')
 
 def fetchEq(i_file_name, eq_file_name):
@@ -209,7 +210,38 @@ def fetchEq(i_file_name, eq_file_name):
             'z':z_eq}
 
     
-def fetchEnergies(i_file_name, E_file_name):
+def fetchEnergy(i_file_name):
+    '''
+    Generates MLatom-compatible reference energy values from Gaussian logs for
+    arbitrary molecular systems. Currently, only MPn/aug-cc-pVTZ level calculations
+    are supported.
+    --------------------------------------------------------------------------------
+    Params:
+      i_file_name (str): Name of .log file to be parsed WITH EXTENSION.
+      E_file_name (str): Name of .dat file to be generated with reference energies.
+    '''
+    
+    with open(i_file_name,'r') as i_file:
+        l = 0
+        for line in i_file:
+            linha = line.split()
+            # print(l, linha)
+            if len(linha) > 0 and linha[-1] == '0=g16':
+                keywords_phf = ['Counterpoise', 'corrected', 'energy']
+                l += 1
+            elif len(linha) > 0 and linha[-1] == '0=g09':
+                keywords_phf = ['Counterpoise:', 'corrected', 'energy']
+                l += 1
+            elif l > 0 and linha[:3] == keywords_phf:
+                mp4 = float(linha[-1])
+                l += 1
+            elif l < 2:
+                mp4 = '0.0'
+                # print('Energy no. {}: {:.5f} Ha'.format(c,float(linha[-1])))
+                
+    return mp4
+
+def fetchEnergies(i_file_name, E_file_name, scan=False, verbose=False):
     '''
     Generates MLatom-compatible reference energy values from Gaussian logs for
     arbitrary molecular systems. Currently, only MPn/aug-cc-pVTZ level calculations
@@ -218,35 +250,43 @@ def fetchEnergies(i_file_name, E_file_name):
     Params:
       i_file_name (str): Name of .log file to be parsed WITHOUT EXTENSION.
       E_file_name (str): Name of .dat file to be generated with reference energies.
+            scan (bool): If the 'Scan' feature of Gaussian was used.
+         verbose (bool): Sets whether to display more info or not
     '''
-    global keywords_phf
-    e_file = open(E_file_name,'w')
-    MP4 = np.zeros(21)
-    c = 0
     
-    #Energy at R -> inf (theta = 0°)
-    with open(i_file_name+"_inf.log",'r') as g:
-        for line in g:
-            linha = line.split()
-            if linha[:3] == keywords_phf:
-                # print(linha)
-                Einf = float(linha[4])
-                
-    for k in range(36):
-        mp4 = []
-        with open(i_file_name+"_{}.log".format(k),'r') as i_file:
-            for line in i_file:
-                linha = line.split()
-                if linha[:3] == keywords_phf:
-                    mp4.append(float(linha[-1]))
-                    e_file.write('{:.5f}\n'.format((float(linha[-1]) - Einf)*219474.6305))
-                    c += 1
-                    # print('Energy no. {}: {:.5f} Ha'.format(c,float(linha[-1])))
-                    
-        MP4 = np.vstack((MP4,np.array(mp4)))
+    e_file = open(E_file_name,'w')
+    c = 0
         
-    MP4 = MP4[1:,:]
-    E_grid = (MP4[1:,:] - Einf)*219474.6305
+    Einf = fetchEnergy(i_file_name+"_inf.log")
+    
+    if scan:
+        MP4 = np.zeros(21)
+        for k in range(36):
+            mp4 = []
+            with open(i_file_name+"_{}.log".format(k),'r') as i_file:
+                l = 0
+                for line in i_file:
+                    linha = line.split()
+                    if len(linha) > 0 and linha[-1] == '0=g16':
+                        keywords_phf = ['Counterpoise', 'corrected', 'energy']
+                    elif len(linha) > 0 and linha[-1] == '0=g09':
+                        keywords_phf = ['Counterpoise:', 'corrected', 'energy']
+                    if linha[:3] == keywords_phf:
+                        mp4.append(float(linha[-1]))
+                        e_file.write('{:.5f}\n'.format((float(linha[-1]) - Einf)))
+                        c += 1
+                        # print('Energy no. {}: {:.5f} Ha'.format(c,float(linha[-1])))
+            MP4 = np.vstack((MP4,np.array(mp4)))
+    else:
+        MP4 = np.zeros((4,36,21))
+        for i in range(0,10,3):
+            for j in range(36):
+                for k in range(21):
+                    E = fetchEnergy(i_file_name+"_{}_{}_{}.log".format(i,j,k))
+                    MP4[i//3,j,k] = float(E) - Einf
+                    if verbose: print('Energy no. {} {} {}: {} cm⁻¹'.format(i,j,k,MP4[i//3,j,k]*219474.6))
+                    e_file.write('{:.5f}\n'.format((float(E) - Einf)))
+        
     e_file.close()
     return MP4
 
@@ -301,7 +341,6 @@ def correlFig(out_file_name, E_ref_file, E_ML_file, itest_file, fig_name = None,
             if linha[0] == 'SE_b': statInfo['slopeErr'] = float(linha[2])
     o_file.close()
     
-    
     E_ref = pd.read_csv(E_ref_file, header=None).to_numpy()
     E_pred = pd.read_csv(E_ML_file, header=None).to_numpy()
     
@@ -323,7 +362,7 @@ def correlFig(out_file_name, E_ref_file, E_ML_file, itest_file, fig_name = None,
     y_plot = np.array([f(x) for x in x_plot])
 
     genFig('Correlation between reference and ML Energies',
-           '$R^2 = {:.9f}$'.format(statInfo['R2']),
+           'MSE = {:.5e}'.format(statInfo['MSE']),
            'Reference energies ($\\mathrm{cm}^{-1}$)',
            'ML energies ($\\mathrm{cm}^{-1}$)')
     # plt.plot(E_ref, E_pred, 'k.', label='Data')
@@ -332,8 +371,44 @@ def correlFig(out_file_name, E_ref_file, E_ML_file, itest_file, fig_name = None,
     plt.legend()
     if fig_name != None: plt.savefig(fig_name)
     if show: plt.show() 
+
+def pesPlot(E_file, Rmin=3., Rmax=5., dR=0.1, Tmin=0., Tmax=360., dTeta=10., Amin=0., Amax=90., dAlpha=30.):
+    Teta,Alpha,R = np.meshgrid(np.arange(Tmin, Tmax,10), np.arange(0, 91, 30), np.arange(3,5.1,0.1))
+    E = pd.read_csv(E_file,header=None).to_numpy().reshape((4,36,21))
     
-# ax.fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
+    fig = plt.figure(figsize = (12, 12), dpi = 175)
+    ax = fig.add_subplot(111, projection='3d')
+    ax.view_init(30, 45)
+    ax.w_xaxis.pane.fill = False
+    ax.w_yaxis.pane.fill = False
+    ax.w_zaxis.pane.fill = False
+    ax.grid(False) 
+
+    kw = {
+        'vmin': E.min(),
+        'vmax': E.max(),
+        'levels': np.linspace(E.min(), E.max(), 20),
+    }
+
+    #AlphaxTheta
+    ax.contourf(E[:,:,0], Teta[:,:,0], Alpha[:,:,0], zdir='x', cmap='Greens_r', offset=3, **kw)
+    ax.contour(E[:,:,0], Teta[:,:,0], Alpha[:,:,0], zdir='x', cmap='Greys_r', offset=3, **kw)
+
+    #AlphaxR
+    ax.contourf(R[:,0,:], E[:,0,:], Alpha[:,0,:], zdir='y', cmap='Greens_r', offset=0, **kw)
+    ax.contour(R[:,0,:], E[:,0,:], Alpha[:,0,:], zdir='y', cmap='Greys_r', offset=0, **kw)
+
+    #RxTheta
+    im = ax.contourf(R[0,:,:], Teta[0,:,:], E[0,:,:], zdir='z', cmap='Greens_r', offset=0, **kw)
+    ax.contour(R[0,:,:], Teta[0,:,:], E[0,:,:], zdir='z', cmap='Greys_r', offset=0, **kw)
+    fig.colorbar(im, ax=ax, fraction=0.02, pad=0.05, format='%.3f', label='E $(cm^{-1})$')
+
+    Rmin, Rmax = R.min(), R.max()
+    ax.set(xlim=[Rmin, Rmax], xlabel='$R  (\\mathring{A})$', ylabel='$\\theta (°)$', zlabel='$\\alpha (°)$')
+    plt.suptitle('Superfície de Energia Potencial', fontsize=20)
+    plt.show()
+
+    # ax.fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
 def lcPlot(lcPath, graphs, fig_name = None, show = True):
     '''
     Plots the generated learning curves from MLatom's learningCurve feature. 
@@ -380,22 +455,21 @@ def lcPlot(lcPath, graphs, fig_name = None, show = True):
     plt.legend()
     if fig_name != None: plt.savefig(fig_name)
     if show: plt.show() 
-        
-    
+
 if __name__ == '__main__': #Example run for H2O2-Kr
     #Clears pre-existing data on folder
-    os.system('rm -rf ../ml_scripts/*.x ../ml_scripts/*.dat ~/ml_scripts/*.out ../ml_scripts/slice* ../ml_scripts/learningCurve/')
+    #os.system('rm -rf ../ml_scripts/*.x ../ml_scripts/*.dat ~/ml_scripts/*.out ../ml_scripts/slice* ../ml_scripts/learningCurve/')
     
     #Generates ML input geometries for H2O2-Kr 
-    atoms, coords = genH2O2_Ng('Kr', dR = 0.1, dTeta = 10., dAlpha = 10.)
+    atoms, coords = genH2O2_Ng('Kr', dR = 0.1, dTeta = 10.)
     genMLatomInput('../ml_scripts/H2O2-Kr.xyz', atoms, coords)
     
     #Fetches the equilibrium geometry from a pre-made Gaussian 09 log file
-    fetchEq('../Logs/H2O2-Kr_opt.log','../ml_scripts/H2O2-Kr_eq.xyz') 
+    #fetchEq('../Logs/H2O2-Kr_opt.log','../ml_scripts/H2O2-Kr_eq.xyz') 
     
     #Converts XYZ equilibrium molecular geometry into MLatom X input file
     os.system(mlatom_path+'XYZ2X '+ \
-                          'XYZfile=../ml_scripts/H2O2-Kr_eq.xyz '+ \
+                          'XYZfile=../ml_scripts/eq.xyz '+ \
                           'XfileOut=../ml_scripts/eq.x '+ \
                           'molDescriptor=RE '+ \
                           'molDescrType=sorted '+ \
@@ -409,64 +483,64 @@ if __name__ == '__main__': #Example run for H2O2-Kr
                           'molDescrType=sorted '+ \
                           'XYZsortedFileOut=../ml_scripts/x_sorted.out '+ \
                           'permInvNuclei=1-2.3-4') # specifies which atoms to permute
-                              
                           
     #slices dataset into 3 equal size regions
     os.system(mlatom_path+'slice nslices=3 XfileIn=../ml_scripts/x_sorted.dat eqXfileIn=../ml_scripts/eq.x')
     
     #Samples using structure-based sampling
-    os.system(mlatom_path+'sampleFromSlices nslices=3 sampling=structure-based Ntrain=1675')
+    os.system(mlatom_path+'sampleFromSlices nslices=3 sampling=structure-based Ntrain=567')
     
     #Merges the sampled indices from all slices
-    os.system(mlatom_path+'mergeSlices nslices=3 Ntrain=1675')
+    #os.system(mlatom_path+'mergeSlices nslices=3 Ntrain=567')
+    os.system(mlatom_path+'mergeSlices nslices=3 Ntrain=2268')
     
     #Fetches the reference energies from Gaussian 09 log files and writes them in MLatom-compatible '.dat' files
-    #E_ref = fetchEnergies('../Logs/MP4/H2O2-Kr','../ml_scripts/H2O2-Kr_E.dat')
+    E_ref = fetchEnergies('../Logs/MP4/H2O2-Kr','../ml_scripts/H2O2-Kr_E.dat')
     
     #Training and estimating accuracy of ML model
-    #os.system(mlatom_path+'estAccMLmodel '+\
-    #                      'XYZfile=H2O2-Kr.xyz '+\
-    #                      'Yfile=H2O2-Kr_E.dat '+\
-    #                      'YestFile=H2O2-Kr_ML.dat '+\
-    #                      'molDescriptor=RE '+\
-    #                      'molDescrType=permuted '+\
-    #                      'permInvNuclei=1-2.3-4 '+\
-    #                      'kernel=Gaussian '+\
-    #                      'permInvKernel '+\
-    #                      'sigma=opt '+\
-    #                      'lambda=opt '+\
-    #                      'minimizeError=RMSE '+\
-    #                      'sampling=user-defined '+\
-    #                      'itrainin=itrain.dat '+\
-    #                      'itestin=itest.dat '+\
-    #                      'isubtrainin=isubtrain.dat '+\
-    #                      'ivalidatein=ivalidate.dat '+\
-    #                      'Ntrain=567 '+\
-    #                      'Ntest=189 '+\
-    #                      'Nsubtrain=453 > estAcc.out')   
+    os.system(mlatom_path+'estAccMLmodel '+\
+                          'XYZfile=H2O2-Kr.xyz '+\
+                          'Yfile=H2O2-Kr_E.dat '+\
+                          'YestFile=H2O2-Kr_ML.dat '+\
+                          'molDescriptor=RE '+\
+                          'molDescrType=permuted '+\
+                          'permInvNuclei=1-2.3-4 '+\
+                          'kernel=Gaussian '+\
+                          'permInvKernel '+\
+                          'sigma=opt '+\
+                          'lambda=opt '+\
+                          'minimizeError=RMSE '+\
+                          'sampling=user-defined '+\
+                          'itrainin=itrain.dat '+\
+                          'itestin=itest.dat '+\
+                          'isubtrainin=isubtrain.dat '+\
+                          'ivalidatein=ivalidate.dat '+\
+                          'Ntrain=2268 '+\
+                          'Ntest=756 '+\
+                          'Nsubtrain=567 > estAcc.out')   
                           
     # Plots the correlation graph between reference and ML energies
-    #correlFig('../ml_scripts/estAcc.out', '../ml_scripts/H2O2-Kr_E.dat', 
-    #          '../ml_scripts/H2O2-Kr_ML.dat', '../ml_scripts/itest.dat')
+    correlFig('../ml_scripts/estAcc.out', '../ml_scripts/H2O2-Kr_E.dat', 
+              '../ml_scripts/H2O2-Kr_ML.dat', '../ml_scripts/itest.dat')
     
     #Plots the learning curve
-    # os.system(mlatom_path+'learningCurve '+\
-                          # 'XYZfile=H2O2-Kr.xyz '+\
-                          # 'Yfile=H2O2-Kr_E.dat '+\
-                          # 'YestFile=H2O2-Kr_ML.dat '+\
-                          # 'lcNtrains={} '.format(','.join([str(int(x)) for x in np.floor(np.linspace(100,567,10))]))+\
-                          # 'lcNrepeats=10 '+\
-                          # 'Nsubtrain=0.8 '+\
-                          # 'Nvalidate=0.2 '+\
-                          # 'Ntest=189 '+\
-                          # 'molDescriptor=RE '+\
-                          # 'molDescrType=permuted '+\
-                          # 'permInvNuclei=1-2.3-4 '+\
-                          # 'kernel=Gaussian '+\
-                          # 'permInvKernel '+\
-                          # 'sigma=opt '+\
-                          # 'lambda=opt > learnCurve.out')  
-                          
+    os.system(mlatom_path+'learningCurve '+\
+                          'XYZfile=H2O2-Kr.xyz '+\
+                          'Yfile=H2O2-Kr_E.dat '+\
+                          'YestFile=H2O2-Kr_ML.dat '+\
+                          'lcNtrains={} '.format(','.join([str(int(x)) for x in np.floor(np.linspace(567,2268,10))]))+\
+                          'lcNrepeats=10 '+\
+                          'Nsubtrain=0.75 '+\
+                          'Nvalidate=0.25 '+\
+                          'Ntest=756 '+\
+                          'molDescriptor=RE '+\
+                          'molDescrType=permuted '+\
+                          'permInvNuclei=1-2.3-4 '+\
+                          'kernel=Gaussian '+\
+                          'permInvKernel '+\
+                          'sigma=opt '+\
+                          'lambda=opt > learnCurve.out')  
+                          #0.8 0.2 189
     #','.join([str(int(x)) for x in np.floor(np.linspace(100,567,10))])
     #.format(','.join([str(x) for x in range(10,0,-1)]))
     # lcPlot('learningCurve/MLatomF/', ['yErr'])

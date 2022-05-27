@@ -17,11 +17,12 @@ teta2 = 0.                        #Angle between the other O-H bond and y axis
 
 #Keyword lists for Gaussian log parsing
 keywords_opt = ['OPTIMIZATION STOPPED','Z-Matrix','---------------------------------------------------------------------']
-keywords_phf = ['Counterpoise', 'corrected', 'energy']
+
+nproc='8'
+ram='8'
 
 #Keyword listing for MLatom
 keywords_estAcc = ['test','set']
-
 
 #Periodic Dictionary of Elements
 Elements = {
